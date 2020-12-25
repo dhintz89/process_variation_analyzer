@@ -82,35 +82,43 @@ Sub CreateReport()
         .Name = "Results"
     End With
     
+    
+'Insert Handover Column in column E
+    dataSheet.Activate
+    dataSheet.Columns("E:E").Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    lRow = dataSheet.Cells(dataSheet.Rows.Count, 3).End(xlUp).Row
+    dataSheet.Range("E2").Value = "Handover"
+    dataSheet.Range("E3", dataSheet.Cells(lRow, 5)).Value = "=IF(OR(E2=""Handover"",C2=""PA_Start/End.104"", H2=0),FALSE,IF(B3=LOOKUP(2,1/($H2:H$3=1),$B2:B$3),FALSE,TRUE))"
+        
+    
 'Filter out shapes not in scope (wrong pages, connectors, headers, etc.)
 'Changes to Visio Stencil will need to be addressed in ValidShapeTypeList
-    dataSheet.Activate
-    lRow = dataSheet.Cells(dataSheet.Rows.Count, 3).End(xlUp).Row
-    dataSheet.Range("F2").Value = "Include?"
-    dataSheet.Range("F3", dataSheet.Cells(lRow, 6)).Value = "=IF(ISERROR(FIND(""."",B3)),IF(OR(ISERROR(VLOOKUP(B3,ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(D3)),0,1),IF(OR(ISERROR(VLOOKUP(LEFT(B3,FIND(""."",B3)-1),ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(D3)),0,1))"
+    'lRow = dataSheet.Cells(dataSheet.Rows.Count, 3).End(xlUp).Row
+    dataSheet.Range("H2").Value = "Include?"
+    dataSheet.Range("H3", dataSheet.Cells(lRow, 8)).Value = "=IF(ISERROR(FIND(""."",C3)),IF(OR(ISERROR(VLOOKUP(C3,ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(D3)),0,1),IF(OR(ISERROR(VLOOKUP(LEFT(C3,FIND(""."",C3)-1),ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(F3)),0,1))"
 
 
 'Determine number of tables needed based on Unique Pages
-    If IsEmpty(dataSheet.Range("H1")) Then
-        dataSheet.Columns("H:H").Delete Shift:=xlToLeft
+    If IsEmpty(dataSheet.Range("J1")) Then
+        dataSheet.Columns("J:J").Delete Shift:=xlToLeft
     End If
-    xlBook.ActiveSheet.Range("D2", xlBook.ActiveSheet.Cells(lRow, 4)).Select
+    xlBook.ActiveSheet.Range("F2", xlBook.ActiveSheet.Cells(lRow, 6)).Select
     AppExcel.Selection.Copy
-    xlBook.ActiveSheet.Range("H1").Select
+    xlBook.ActiveSheet.Range("J1").Select
     xlBook.ActiveSheet.Paste
     AppExcel.CutCopyMode = False
-    xlBook.ActiveSheet.Range("$H:$H").RemoveDuplicates Columns:=1, Header:=xlYes
-    xlBook.ActiveSheet.Range("H2").Select
-    If IsEmpty(AppExcel.Selection) Then AppExcel.Selection.Delete Shift:=xlUp
-    uniqVals = xlBook.ActiveSheet.Range("H2", AppExcel.Selection.End(xlDown))
-    xlBook.ActiveSheet.Cells(1, 8).Value = "Unique Pages"
+    xlBook.ActiveSheet.Range("$J:$J").RemoveDuplicates Columns:=1, Header:=xlYes
+    xlBook.ActiveSheet.Range("J2").Select
+    If IsEmpty(AppExcel.Selection) Then AppExcel.Selection.Delete Shift:=xlUp  'empty cell is now showing up at the bottom, not the top
+    uniqVals = xlBook.ActiveSheet.Range("J2", AppExcel.Selection.End(xlDown))
+    xlBook.ActiveSheet.Cells(1, 10).Value = "Unique Pages"
     
 'Create PivotTable for Each resultPage
     xlBook.Sheets("Results").Select
     AppExcel.ActiveSheet.Range("A27").Select
     For Each pn In uniqVals
         AppExcel.ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
-            "Sheet1!R2C1:R1048576C6", Version:=6).CreatePivotTable TableDestination:= _
+            "Sheet1!R2C1:R1048576C8", Version:=6).CreatePivotTable TableDestination:= _
             AppExcel.ActiveCell, TableName:=pn, DefaultVersion:=6
         With AppExcel.ActiveSheet.PivotTables(pn).PivotFields("PageName")
             .Orientation = xlPageField
@@ -139,7 +147,7 @@ Sub CreateReport()
     
 'Build Concatenated Table
     AppExcel.ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
-        "Sheet1!R2C1:R1048576C6", Version:=6).CreatePivotTable TableDestination:= _
+        "Sheet1!R2C1:R1048576C8", Version:=6).CreatePivotTable TableDestination:= _
         "Results!R35C1", TableName:="CombinedTable", DefaultVersion:=6
     With AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Include?")
         .Orientation = xlPageField
