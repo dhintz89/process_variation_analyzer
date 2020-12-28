@@ -95,7 +95,7 @@ Sub CreateReport()
 'Changes to Visio Stencil will need to be addressed in ValidShapeTypeList
     'lRow = dataSheet.Cells(dataSheet.Rows.Count, 3).End(xlUp).Row
     dataSheet.Range("H2").Value = "Include?"
-    dataSheet.Range("H3", dataSheet.Cells(lRow, 8)).Value = "=IF(ISERROR(FIND(""."",C3)),IF(OR(ISERROR(VLOOKUP(C3,ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(D3)),0,1),IF(OR(ISERROR(VLOOKUP(LEFT(C3,FIND(""."",C3)-1),ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(F3)),0,1))"
+    dataSheet.Range("H3", dataSheet.Cells(lRow, 8)).Value = "=IF(ISERROR(FIND(""."",C3)),IF(OR(ISERROR(VLOOKUP(C3,ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(F3)),0,1),IF(OR(ISERROR(VLOOKUP(LEFT(C3,FIND(""."",C3)-1),ValidShapeTypeList!A:A,1,FALSE)),ISBLANK(F3)),0,1))"
 
 
 'Determine number of tables needed based on Unique Pages
@@ -109,13 +109,14 @@ Sub CreateReport()
     AppExcel.CutCopyMode = False
     xlBook.ActiveSheet.Range("$J:$J").RemoveDuplicates Columns:=1, Header:=xlYes
     xlBook.ActiveSheet.Range("J2").Select
-    If IsEmpty(AppExcel.Selection) Then AppExcel.Selection.Delete Shift:=xlUp  'empty cell is now showing up at the bottom, not the top
+    If IsEmpty(AppExcel.Selection) Then AppExcel.Selection.Delete Shift:=xlUp 'Remove blank cell if it is at the top (shouldn't be)
+    AppExcel.Selection.End(xlDown).Offset(1, 0).Delete Shift:=xlUp 'Remove blank cell at bottom
     uniqVals = xlBook.ActiveSheet.Range("J2", AppExcel.Selection.End(xlDown))
     xlBook.ActiveSheet.Cells(1, 10).Value = "Unique Pages"
     
 'Create PivotTable for Each resultPage
     xlBook.Sheets("Results").Select
-    AppExcel.ActiveSheet.Range("A27").Select
+    AppExcel.ActiveSheet.Range("A27").Select 'place first pivot-table here, may need to re-position tables if charts change
     For Each pn In uniqVals
         AppExcel.ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
             "Sheet1!R2C1:R1048576C8", Version:=6).CreatePivotTable TableDestination:= _
@@ -137,8 +138,7 @@ Sub CreateReport()
             .Position = 1
         End With
         AppExcel.ActiveSheet.PivotTables(pn).AddDataField AppExcel.ActiveSheet.PivotTables(pn) _
-            .PivotFields("Displayed Text"), "Count of Displayed Text", _
-            xlCount
+            .PivotFields("Displayed Text"), "Count of Displayed Text", xlCount
         lcol = AppExcel.ActiveSheet.Cells(27, AppExcel.ActiveSheet.Columns.Count).End(xlToLeft).Column
         AppExcel.ActiveSheet.Cells(27, lcol).Select
         AppExcel.ActiveCell.Offset(0, 2).Select
@@ -148,14 +148,13 @@ Sub CreateReport()
 'Build Concatenated Table
     AppExcel.ActiveWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
         "Sheet1!R2C1:R1048576C8", Version:=6).CreatePivotTable TableDestination:= _
-        "Results!R35C1", TableName:="CombinedTable", DefaultVersion:=6
+        "Results!R35C1", TableName:="CombinedTable", DefaultVersion:=6 'place combined table here, may need to re-position if charts change
     With AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Include?")
         .Orientation = xlPageField
         .Position = 1
     End With
     AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Include?").ClearAllFilters
-    AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Include?").CurrentPage = _
-        "1"
+    AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Include?").CurrentPage = "1"
     With AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields("Variance")
         .Orientation = xlColumnField
         .Position = 1
@@ -165,20 +164,37 @@ Sub CreateReport()
         .Position = 1
     End With
     AppExcel.ActiveSheet.PivotTables("CombinedTable").AddDataField AppExcel.ActiveSheet.PivotTables( _
-        "CombinedTable").PivotFields("Displayed Text"), "Count of Displayed Text", _
-        xlCount
+        "CombinedTable").PivotFields("Displayed Text"), "Count of Displayed Text", xlCount
     With AppExcel.ActiveSheet.PivotTables("CombinedTable").PivotFields( _
         "Count of Displayed Text")
         .Calculation = xlPercentOfRow
         .NumberFormat = "0%"
     End With
     
-'Build E2E Table
+    'Title
+    AppExcel.ActiveSheet.Range("A32").Select
+    AppExcel.ActiveCell.FormulaR1C1 = "Variance By Tab"
+    With AppExcel.Selection.Font
+        .Name = "Calibri"
+        .Size = 16
+        .Bold = True
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleSingle
+        '.ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    
+'Build Total (E2E) Variance Table - replace with more useful chart in future enhancement
     AppExcel.ActiveWorkbook.Worksheets("Results").PivotTables("CombinedTable").PivotCache. _
         CreatePivotTable TableDestination:="Results!R35C6", TableName:= _
         "E2ETable", DefaultVersion:=6
     xlBook.Sheets("Results").Select
-    AppExcel.ActiveSheet.Cells(27, 1).Select
+    AppExcel.ActiveSheet.Cells(27, 1).Select  'What is this for?
     AppExcel.ActiveWorkbook.ShowPivotTableFieldList = True
     With AppExcel.ActiveSheet.PivotTables("E2ETable").PivotFields("Variance")
         .Orientation = xlRowField
@@ -189,11 +205,70 @@ Sub CreateReport()
         .Position = 1
     End With
     AppExcel.ActiveSheet.PivotTables("E2ETable").AddDataField AppExcel.ActiveSheet.PivotTables( _
-        "E2ETable").PivotFields("Displayed Text"), "Count of Displayed Text", _
-        xlCount
+        "E2ETable").PivotFields("Displayed Text"), "Count of Displayed Text", xlCount
     AppExcel.ActiveSheet.PivotTables("E2ETable").PivotFields("Include?").ClearAllFilters
-    AppExcel.ActiveSheet.PivotTables("E2ETable").PivotFields("Include?").CurrentPage = _
-        "1"
+    AppExcel.ActiveSheet.PivotTables("E2ETable").PivotFields("Include?").CurrentPage = "1"
+        
+    'Title
+    AppExcel.ActiveSheet.Range("F32").Select
+    AppExcel.ActiveCell.FormulaR1C1 = "Total Variance"
+    With AppExcel.Selection.Font
+        .Name = "Calibri"
+        .Size = 16
+        .Bold = True
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleSingle
+        '.ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+        
+'Build Handover Counter
+    AppExcel.ActiveWorkbook.Worksheets("Results").PivotTables("CombinedTable").PivotCache. _
+        CreatePivotTable TableDestination:="Results!R35C9", TableName:= _
+        "HandoverTable", DefaultVersion:=6
+    xlBook.Sheets("Results").Select
+    AppExcel.ActiveSheet.Cells(27, 1).Select  'What's this for?
+    AppExcel.ActiveWorkbook.ShowPivotTableFieldList = True
+    With AppExcel.ActiveSheet.PivotTables("HandoverTable").PivotFields("PageName")
+        .Orientation = xlRowField
+        .Position = 1
+    End With
+    With AppExcel.ActiveSheet.PivotTables("HandoverTable").PivotFields("Handover")
+        .Orientation = xlColumnField
+        .Position = 1
+    End With
+    With AppExcel.ActiveSheet.PivotTables("HandoverTable").PivotFields("Include?")
+        .Orientation = xlPageField
+        .Position = 1
+    End With
+    AppExcel.ActiveSheet.PivotTables("HandoverTable").AddDataField AppExcel.ActiveSheet.PivotTables( _
+        "HandoverTable").PivotFields("Displayed Text"), "Count of Displayed Text", xlCount
+    AppExcel.ActiveSheet.PivotTables("HandoverTable").PivotFields("Include?").ClearAllFilters
+    AppExcel.ActiveSheet.PivotTables("HandoverTable").PivotFields("Include?").CurrentPage = "1"
+    
+    'Title
+    AppExcel.ActiveSheet.Range("I32").Select
+    AppExcel.ActiveCell.FormulaR1C1 = "Handovers By Tab"
+    With AppExcel.Selection.Font
+        .Name = "Calibri"
+        .Size = 16
+        .Bold = True
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleSingle
+        '.ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    
 
 'Create Bar Chart
     Dim Rng1
@@ -232,10 +307,8 @@ Sub CreateReport()
     AppExcel.CommandBars("Format Object").Visible = False
     AppExcel.ActiveChart.SetElement (msoElementChartTitleAboveChart)
     AppExcel.Selection.Caption = "Variance by Process Tab"
-    AppExcel.Selection.Format.TextFrame2.TextRange.Font.UnderlineStyle = _
-        msoUnderlineSingleLine
-    AppExcel.ActiveSheet.Shapes("Chart 1").ScaleWidth 1.8, msoFalse, _
-        msoScaleFromTopLeft
+    AppExcel.Selection.Format.TextFrame2.TextRange.Font.UnderlineStyle = msoUnderlineSingleLine
+    AppExcel.ActiveSheet.Shapes("Chart 1").ScaleWidth 1.8, msoFalse, msoScaleFromTopLeft
     AppExcel.ActiveSheet.Shapes("Chart 1").ScaleHeight 1.3, msoFalse, msoScaleFromTopLeft
     AppExcel.ActiveSheet.Shapes("Chart 1").IncrementLeft 25
     AppExcel.ActiveChart.FullSeriesCollection(1).Select
@@ -276,8 +349,7 @@ Sub CreateReport()
     AppExcel.ActiveChart.ChartTitle.Select
     AppExcel.Application.CommandBars("Format Object").Visible = False
     AppExcel.ActiveChart.ChartTitle.Text = "Total Process Variance"
-    AppExcel.Selection.Format.TextFrame2.TextRange.Characters.Text = _
-        "Total Process Variance"
+    AppExcel.Selection.Format.TextFrame2.TextRange.Characters.Text = "Total Process Variance"
     With AppExcel.Selection.Format.TextFrame2.TextRange.Characters(1, 22).ParagraphFormat
         .TextDirection = msoTextDirectionLeftToRight
         .Alignment = msoAlignCenter
@@ -300,44 +372,8 @@ Sub CreateReport()
         .Strike = msoNoStrike
     End With
     AppExcel.ActiveChart.ChartArea.Select
-    AppExcel.ActiveSheet.Shapes("Chart 2").ScaleWidth 1.3020833333, msoFalse, _
-        msoScaleFromTopLeft
-    AppExcel.ActiveSheet.Shapes("Chart 2").ScaleHeight 1.3020833333, msoFalse, _
-        msoScaleFromTopLeft
-
-    AppExcel.ActiveSheet.Range("A32").Select
-    AppExcel.ActiveCell.FormulaR1C1 = "Variance By Tab"
-    With AppExcel.Selection.Font
-        .Name = "Calibri"
-        .Size = 16
-        .Bold = True
-        .Strikethrough = False
-        .Superscript = False
-        .Subscript = False
-        .OutlineFont = False
-        .Shadow = False
-        .Underline = xlUnderlineStyleSingle
-        '.ThemeColor = xlThemeColorLight1
-        .TintAndShade = 0
-        .ThemeFont = xlThemeFontMinor
-    End With
-    
-    AppExcel.ActiveSheet.Range("F32").Select
-    AppExcel.ActiveCell.FormulaR1C1 = "Total Variance"
-    With AppExcel.Selection.Font
-        .Name = "Calibri"
-        .Size = 16
-        .Bold = True
-        .Strikethrough = False
-        .Superscript = False
-        .Subscript = False
-        .OutlineFont = False
-        .Shadow = False
-        .Underline = xlUnderlineStyleSingle
-        '.ThemeColor = xlThemeColorLight1
-        .TintAndShade = 0
-        .ThemeFont = xlThemeFontMinor
-    End With
+    AppExcel.ActiveSheet.Shapes("Chart 2").ScaleWidth 1.3020833333, msoFalse, msoScaleFromTopLeft
+    AppExcel.ActiveSheet.Shapes("Chart 2").ScaleHeight 1.3020833333, msoFalse, msoScaleFromTopLeft
     
 'bring view back to top of page
     AppExcel.ActiveSheet.Shapes("Chart 1").Select
